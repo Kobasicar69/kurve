@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Orange Glow Gallery</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma, Geneva, Verdana, sans-serif}
+    body{background:#000;color:#fff;padding:20px;min-height:100vh;overflow-x:hidden}
+    header{ text-align:center;margin-bottom:30px;padding:20px;border-bottom:2px solid #ff6600 }
+    h1{ color:#ff6600;font-size:2.2rem;text-shadow:0 0 10px rgba(255,102,0,.7);margin-bottom:6px }
+    .subtitle{ color:#ccc;font-size:1rem }
+
+    .gallery{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:15px;
+      max-width:1400px;
+      margin:0 auto;
+    }
+
+    .image-container, .video-container{
+      position:relative;
+      overflow:hidden;
+      border-radius:8px;
+      border:3px solid #333;
+      transition: box-shadow 0.4s ease, border-color 0.4s ease;
+      aspect-ratio:1/1;
+      background:linear-gradient(180deg,#050505,#0b0b0b);
+      box-shadow:0 4px 15px rgba(0,0,0,.8);
+    }
+    .image-container:hover, .video-container:hover{
+      border-color:#ff6600;
+      box-shadow:0 0 30px rgba(255,102,0,.9), 0 0 40px rgba(255,102,0,.6);
+    }
+
+    .image-container img, .video-container video{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+      transition: transform .5s ease, filter .4s ease;
+    }
+    .image-container:hover img, .video-container:hover video{
+      transform:scale(1.15);
+      filter:brightness(.7) contrast(1.08);
+    }
+
+    .video-icon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ff6600;
+      font-size: 12px;
+      z-index: 2;
+    }
+
+    /* Lazy loading placeholder */
+    .lazy-placeholder {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, #1a1a1a 25%, #0f0f0f 25%, #0f0f0f 50%, #1a1a1a 50%, #1a1a1a 75%, #0f0f0f 75%, #0f0f0f);
+      background-size: 20px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ff6600;
+      font-size: 14px;
+    }
+
+    /* Fullscreen modal */
+    .modal{ 
+      display:none; 
+      position:fixed; 
+      inset:0; 
+      background:rgba(0,0,0,.95); 
+      z-index:1000; 
+      justify-content:center; 
+      align-items:center; 
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .modal.active{ 
+      display:flex;
+      opacity: 1;
+    }
+    .modal-img-container, .modal-video-container {
+      position: relative;
+      max-width: 90%;
+      max-height: 86vh;
+    }
+    .modal-img, .modal-video{ 
+      max-width:100%; 
+      max-height:86vh; 
+      object-fit:contain; 
+      border:5px solid #ff6600; 
+      border-radius:10px; 
+      box-shadow:0 0 40px rgba(255,102,0,.9);
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    .modal-img.fade-out, .modal-video.fade-out {
+      opacity: 0;
+    }
+    .modal-video {
+      background: #000;
+    }
+    .close-btn{ 
+      position:absolute; 
+      top:20px; 
+      right:30px; 
+      font-size:40px; 
+      color:#ff6600; 
+      cursor:pointer; 
+      background:none; 
+      border:none; 
+      z-index:1001; 
+      transition:transform .2s, text-shadow .2s 
+    }
+    .close-btn:hover{ 
+      transform:scale(1.12); 
+      text-shadow:0 0 15px rgba(255,102,0,1) 
+    }
+
+    .nav-btn{
+      position:absolute; 
+      top:50%; 
+      transform:translateY(-50%);
+      background:rgba(0,0,0,.5); 
+      color:#ff6600; 
+      border:2px solid #ff6600;
+      width:50px;
+      height:50px;
+      border-radius:50%;
+      font-size:30px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      z-index:1001;
+      transition:background .2s,color .2s,box-shadow .2s;
+    }
+    .nav-btn:hover{ 
+      background:#ff6600;
+      color:#000; 
+      box-shadow:0 0 20px rgba(255,102,0,.9) 
+    }
+    .prev-btn{ left:20px } 
+    .next-btn{ right:20px }
+
+    .image-counter{ 
+      position:absolute; 
+      bottom:20px; 
+      left:50%; 
+      transform:translateX(-50%); 
+      color:#ff6600; 
+      background:rgba(0,0,0,.7); 
+      padding:6px 14px; 
+      border-radius:20px; 
+      border:1px solid #ff6600 
+    }
+
+    footer{ 
+      text-align:center;
+      margin-top:40px;
+      padding:20px;
+      color:#666;
+      border-top:1px solid #333 
+    }
+
+    /* hide audio UI */
+    .audio-player{ display:none }
+
+    .music-indicator{ 
+      position:fixed; 
+      bottom:20px; 
+      right:20px; 
+      background:rgba(255,102,0,.18); 
+      border:1px solid #ff6600; 
+      border-radius:50%; 
+      width:60px; 
+      height:60px; 
+      display:flex; 
+      justify-content:center; 
+      align-items:center; 
+      color:#ff6600; 
+      font-size:20px; 
+      z-index:100;
+      animation: pulse 2s infinite;
+    }
+    
+    .kurva-text {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      animation: spin 10s linear infinite;
+    }
+    
+    .kurva-text span {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform-origin: 0 30px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    
+    @keyframes pulse{ 
+      0%{box-shadow:0 0 0 0 rgba(255,102,0,.7);}
+      70%{box-shadow:0 0 0 15px rgba(255,102,0,0);}
+      100%{box-shadow:0 0 0 0 rgba(255,102,0,0);} 
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* responsive */
+    @media(max-width:1200px){ .gallery{ grid-template-columns:repeat(4,1fr) } }
+    @media(max-width:900px){ .gallery{ grid-template-columns:repeat(3,1fr) } }
+    @media(max-width:600px){ .gallery{ grid-template-columns:repeat(2,1fr); } h1{ font-size:1.8rem } }
+    @media(max-width:400px){ .gallery{ grid-template-columns:1fr } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>К.П.Ч.</h1>
+    <p class="subtitle">Једном курва, увек курва</p>
+  </header>
+
+  <div class="gallery" id="gallery"></div>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <button class="close-btn" id="close-btn" aria-label="Close">×</button>
+    <div class="modal-img-container" id="modal-img-container">
+      <img class="modal-img" id="modal-img" alt="Full view">
+    </div>
+    <div class="modal-video-container" id="modal-video-container" style="display:none">
+      <video class="modal-video" id="modal-video" controls></video>
+    </div>
+    <button class="nav-btn prev-btn" id="prev-btn" aria-label="Previous">&#10094;</button>
+    <button class="nav-btn next-btn" id="next-btn" aria-label="Next">&#10095;</button>
+    <div class="image-counter" id="image-counter">1 / 446</div>
+  </div>
+
+  <footer><p>Сликано Андријаниним апаратом &copy; 2025 | боје су познате</p></footer>
+
+  <div class="music-indicator" title="Music is playing">
+    <div class="kurva-text" id="kurva-text"></div>
+    ♪
+  </div>
+
+  <!-- Audio -->
+  <audio id="bg-music" class="audio-player" loop playsinline>
+    <source src="media/Kurva%20ka%C5%BEe.mp3" type="audio/mpeg">
+    Your browser does not support audio.
+  </audio>
+
+  <script>
+    // DOM references
+    const gallery = document.getElementById('gallery');
+    const modal = document.getElementById('modal');
+    const modalImg = document.getElementById('modal-img');
+    const modalImgContainer = document.getElementById('modal-img-container');
+    const modalVideo = document.getElementById('modal-video');
+    const modalVideoContainer = document.getElementById('modal-video-container');
+    const closeBtn = document.getElementById('close-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const imageCounter = document.getElementById('image-counter');
+    const bgMusic = document.getElementById('bg-music');
+    const kurvaText = document.getElementById('kurva-text');
+
+    // Store media paths and types
+    let mediaUrls = [];
+    let mediaData = [];
+
+    // Lazy loading configuration
+    const lazyLoadConfig = {
+      rootMargin: '100px 0px',
+      threshold: 0.01
+    };
+
+    // Create spinning KURVA text
+    function createKurvaText() {
+      const text = "КУРВА";
+      for (let i = 0; i < text.length; i++) {
+        const span = document.createElement('span');
+        span.textContent = text[i];
+        span.style.transform = `rotate(${i * (360 / text.length)}deg)`;
+        kurvaText.appendChild(span);
+      }
+    }
+
+    // Load media with better video handling
+    function loadMediaElement(mediaElement, src, placeholder) {
+      if (mediaElement.tagName === 'IMG') {
+        mediaElement.src = src;
+        mediaElement.onload = () => {
+          if (placeholder) placeholder.style.display = 'none';
+        };
+      } else if (mediaElement.tagName === 'VIDEO') {
+        // For videos, we'll load them differently to avoid autoplay issues
+        mediaElement.src = src;
+        // Only load metadata to get the thumbnail
+        mediaElement.preload = 'metadata';
+        
+        mediaElement.onloadedmetadata = () => {
+          if (placeholder) placeholder.style.display = 'none';
+          // Seek to the beginning to show the first frame as thumbnail
+          mediaElement.currentTime = 0.1;
+        };
+        
+        // Prevent video from playing when loading
+        mediaElement.addEventListener('loadstart', () => {
+          mediaElement.pause();
+        });
+      }
+    }
+
+    // Lazy load media when it comes into view
+    function setupLazyLoading() {
+      const lazyMediaObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const container = entry.target;
+            const mediaElement = container.querySelector('img, video');
+            const placeholder = container.querySelector('.lazy-placeholder');
+            
+            if (mediaElement && !mediaElement.src && mediaElement.dataset.src) {
+              loadMediaElement(mediaElement, mediaElement.dataset.src, placeholder);
+            }
+            
+            // Stop observing once loaded
+            observer.unobserve(container);
+          }
+        });
+      }, lazyLoadConfig);
+
+      // Observe all media containers
+      document.querySelectorAll('.image-container, .video-container').forEach(container => {
+        lazyMediaObserver.observe(container);
+      });
+    }
+
+    // Load manifest.json and build gallery
+    async function loadGallery() {
+      try {
+        // Fetch the manifest file
+        const response = await fetch('/media/manifest.json');
+        const manifest = await response.json();
+        
+        // Store all media files
+        mediaData = manifest;
+        mediaUrls = mediaData.map(item => item.path);
+        
+        // Build gallery with lazy loading
+        mediaData.forEach((item, index) => {
+          let cell, mediaElement;
+          
+          if (item.type === 'image') {
+            cell = document.createElement('div');
+            cell.className = 'image-container';
+            
+            // Create placeholder
+            const placeholder = document.createElement('div');
+            placeholder.className = 'lazy-placeholder';
+            placeholder.textContent = `${index + 1}`;
+            cell.appendChild(placeholder);
+            
+            mediaElement = document.createElement('img');
+            mediaElement.dataset.src = item.path;
+            mediaElement.alt = item.filename || `Image ${index + 1}`;
+          } else if (item.type === 'video') {
+            cell = document.createElement('div');
+            cell.className = 'video-container';
+            
+            // Create placeholder
+            const placeholder = document.createElement('div');
+            placeholder.className = 'lazy-placeholder';
+            placeholder.textContent = `${index + 1}`;
+            cell.appendChild(placeholder);
+            
+            mediaElement = document.createElement('video');
+            mediaElement.dataset.src = item.path;
+            // Important: prevent autoplay and only load metadata
+            mediaElement.setAttribute('preload', 'metadata');
+            mediaElement.setAttribute('muted', 'true');
+            mediaElement.setAttribute('playsinline', '');
+            mediaElement.muted = true;
+            
+            // Add video icon
+            const videoIcon = document.createElement('div');
+            videoIcon.className = 'video-icon';
+            videoIcon.innerHTML = '▶';
+            cell.appendChild(videoIcon);
+          }
+          
+          mediaElement.dataset.index = index;
+          mediaElement.dataset.type = item.type;
+          
+          cell.appendChild(mediaElement);
+          gallery.appendChild(cell);
+
+          // Add click event to the container
+          cell.addEventListener('click', () => openModal(index));
+        });
+        
+        console.log(`Loaded ${mediaUrls.length} media files from manifest`);
+        
+        // Setup lazy loading
+        setupLazyLoading();
+        
+      } catch (error) {
+        console.error('Error loading manifest:', error);
+        gallery.innerHTML = '<div style="text-align:center;grid-column:1/-1;padding:20px;color:#ff6600;">Error loading media. Please check if manifest.json exists.</div>';
+      }
+    }
+
+    // Modal controls
+    let currentIndex = 0;
+    let isTransitioning = false;
+    let isVideoPlaying = false;
+    
+    function openModal(i) {
+      currentIndex = i;
+      const mediaItem = mediaData[i];
+      
+      if (mediaItem.type === 'image') {
+        // Show image, hide video
+        modalImgContainer.style.display = 'block';
+        modalVideoContainer.style.display = 'none';
+        modalImg.src = mediaItem.path;
+        
+        // Ensure music is unmuted when viewing images
+        if (!isVideoPlaying) {
+          bgMusic.muted = false;
+        }
+      } else if (mediaItem.type === 'video') {
+        // Show video, hide image
+        modalImgContainer.style.display = 'none';
+        modalVideoContainer.style.display = 'block';
+        
+        // Reset video state
+        modalVideo.pause();
+        modalVideo.currentTime = 0;
+        modalVideo.muted = false; // Unmute for modal viewing
+        
+        // Load the video source
+        modalVideo.src = mediaItem.path;
+        modalVideo.load();
+        
+        // Mute music when video starts playing
+        modalVideo.onplay = () => {
+          bgMusic.muted = true;
+          isVideoPlaying = true;
+        };
+        
+        // Unmute music when video is paused
+        modalVideo.onpause = () => {
+          bgMusic.muted = false;
+          isVideoPlaying = false;
+        };
+        
+        // Auto-play video when enough data is loaded
+        modalVideo.oncanplay = () => {
+          modalVideo.play().catch(e => {
+            console.log('Video autoplay prevented, user interaction required');
+          });
+        };
+      }
+      
+      imageCounter.textContent = `${i + 1} / ${mediaUrls.length}`;
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden','false');
+    }
+    
+    function closeModal(){ 
+      // Pause video if playing
+      if (!modalVideo.paused) {
+        modalVideo.pause();
+      }
+      
+      // Reset video state
+      isVideoPlaying = false;
+      bgMusic.muted = false;
+      
+      modal.classList.remove('active'); 
+      modal.setAttribute('aria-hidden','true'); 
+    }
+
+    function changeImageWithTransition(newIndex) {
+      if (isTransitioning || newIndex === currentIndex) return;
+      
+      isTransitioning = true;
+      
+      // Get current and next media types
+      const currentType = mediaData[currentIndex].type;
+      const nextType = mediaData[newIndex].type;
+      
+      // Fade out current media
+      if (currentType === 'image') {
+        modalImg.classList.add('fade-out');
+      } else {
+        modalVideo.classList.add('fade-out');
+        
+        // Pause video when navigating away
+        if (!modalVideo.paused) {
+          modalVideo.pause();
+          isVideoPlaying = false;
+          bgMusic.muted = false;
+        }
+      }
+      
+      // After fade out, change media and fade in
+      setTimeout(() => {
+        currentIndex = newIndex;
+        const mediaItem = mediaData[currentIndex];
+        
+        if (mediaItem.type === 'image') {
+          // Show image, hide video
+          modalImgContainer.style.display = 'block';
+          modalVideoContainer.style.display = 'none';
+          modalImg.src = mediaItem.path;
+          
+          // Ensure music is unmuted when viewing images
+          bgMusic.muted = false;
+        } else {
+          // Show video, hide image
+          modalImgContainer.style.display = 'none';
+          modalVideoContainer.style.display = 'block';
+          
+          // Reset video state
+          modalVideo.pause();
+          modalVideo.currentTime = 0;
+          modalVideo.muted = false;
+          
+          // Load the video source
+          modalVideo.src = mediaItem.path;
+          modalVideo.load();
+          
+          // Mute music when video starts playing
+          modalVideo.onplay = () => {
+            bgMusic.muted = true;
+            isVideoPlaying = true;
+          };
+          
+          // Unmute music when video is paused
+          modalVideo.onpause = () => {
+            bgMusic.muted = false;
+            isVideoPlaying = false;
+          };
+          
+          // Auto-play video when enough data is loaded
+          modalVideo.oncanplay = () => {
+            modalVideo.play().catch(e => {
+              console.log('Video autoplay prevented');
+            });
+          };
+        }
+        
+        imageCounter.textContent = `${currentIndex + 1} / ${mediaUrls.length}`;
+        
+        // Remove fade-out class to trigger fade-in
+        modalImg.classList.remove('fade-out');
+        modalVideo.classList.remove('fade-out');
+        
+        // Reset transitioning flag after the transition completes
+        setTimeout(() => {
+          isTransitioning = false;
+        }, 300);
+      }, 300);
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    prevBtn.addEventListener('click', () => {
+      const newIndex = (currentIndex - 1 + mediaUrls.length) % mediaUrls.length;
+      changeImageWithTransition(newIndex);
+    });
+    nextBtn.addEventListener('click', () => {
+      const newIndex = (currentIndex + 1) % mediaUrls.length;
+      changeImageWithTransition(newIndex);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!modal.classList.contains('active')) return;
+      if (e.key === 'Escape') closeModal();
+      else if (e.key === 'ArrowLeft') prevBtn.click();
+      else if (e.key === 'ArrowRight') nextBtn.click();
+    });
+
+    // --- Audio autoplay strategy ---
+    async function startMusic() {
+      try {
+        // set volume and loop
+        bgMusic.loop = true;
+        bgMusic.preload = 'auto';
+        bgMusic.muted = false; // attempt audible play first
+
+        // try direct play
+        let playPromise = bgMusic.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          console.log('Audio started via element.play()');
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct play failed, will try muted autoplay then unmute:', err);
+      }
+
+      // 2) Try muted autoplay (most browsers allow muted autoplay)
+      try {
+        bgMusic.muted = true;
+        await bgMusic.play();
+        console.log('Muted autoplay succeeded');
+      } catch (err) {
+        console.warn('Muted autoplay failed as well:', err);
+        // Give up — browser is very strict. Leave muted attempt as fallback.
+        return;
+      }
+
+      // 3) Try to unmute and use Web Audio API to resume (may still require gesture)
+      try {
+        // create/resume AudioContext
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          try {
+            await ctx.resume();
+          } catch(e){ /* ignore resume errors */ }
+          // connect the <audio> element to the context and destination
+          const src = ctx.createMediaElementSource(bgMusic);
+          src.connect(ctx.destination);
+          // now attempt to unmute programmatically
+          bgMusic.muted = false;
+          try {
+            await bgMusic.play();
+            console.log('Unmuted and playing through AudioContext');
+            return;
+          } catch(e){
+            console.warn('Unmute/play after AudioContext failed:', e);
+            // If still blocked, keep it muted (so user hears nothing) but it's playing muted.
+          }
+        } else {
+          // no AudioContext available — try unmuting anyway
+          bgMusic.muted = false;
+          try { await bgMusic.play(); console.log('Unmuted and playing'); return; } catch(e){ console.warn('Final unmute failed', e); }
+        }
+      } catch (e) {
+        console.warn('Error when trying AudioContext path:', e);
+      }
+    }
+
+    // Start as soon as possible after load
+    window.addEventListener('load', () => {
+      // Create the spinning KURVA text
+      createKurvaText();
+      
+      // Load the gallery first
+      loadGallery().then(() => {
+        console.log('Gallery loaded successfully');
+      });
+      
+      // Then attempt to start music
+      startMusic().catch(e => console.warn('startMusic error', e));
+    });
+
+    // Helpful: if user interacts later, try to resume audio again once
+    function tryResumeOnGesture() {
+      startMusic().then(()=> {
+        // remove listeners once we attempted
+        window.removeEventListener('click', tryResumeOnGesture);
+        window.removeEventListener('keydown', tryResumeOnGesture);
+      }).catch(()=>{});
+    }
+    // add gesture listeners to attempt again (no visible hint per request)
+    window.addEventListener('click', tryResumeOnGesture, { once: false });
+    window.addEventListener('keydown', tryResumeOnGesture, { once: false });
+
+    // Optional: show small console message about autoplay restrictions
+    console.log('Gallery loaded — audio attempted. If it is not playing, your browser blocked autoplay (browser policy).');
+  </script>
+</body>
+</html>
