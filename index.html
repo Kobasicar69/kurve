@@ -191,38 +191,6 @@
       animation: pulse 2s infinite;
     }
 
-    /* Audio-unlock overlay (for iOS/Safari) */
-    #audio-unlock {
-      position: fixed;
-      inset: 0;
-      display: none;
-      z-index: 20000;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.95));
-      color: #fff;
-      text-align: center;
-      padding: 20px;
-    }
-    #audio-unlock.show { display:flex; }
-    #audio-unlock .box {
-      border-radius: 12px;
-      padding: 22px;
-      border: 2px solid rgba(255,122,0,0.9);
-      background: rgba(20,20,20,0.8);
-      max-width: 420px;
-    }
-    #audio-unlock button {
-      margin-top:12px;
-      background: var(--accent, #ff6600);
-      color: #000;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
     .kurva-text {
       position: absolute;
       width: 100%;
@@ -289,15 +257,6 @@
     Your browser does not support audio.
   </audio>
 
-  <!-- iOS / Safari audio unlock overlay -->
-  <div id="audio-unlock" role="dialog" aria-modal="true">
-    <div class="box">
-      <div style="font-size:18px;color:#ffb17a;font-weight:700">Tap to enable sound</div>
-      <div style="margin-top:8px;color:#ddd;font-size:14px">iOS Safari requires a tap to allow audio. Tap once and audio will play in background.</div>
-      <button id="unlock-btn">Enable sound</button>
-    </div>
-  </div>
-
   <script>
     // DOM references
     const gallery = document.getElementById('gallery');
@@ -313,9 +272,6 @@
     const bgMusic = document.getElementById('bg-music');
     const kurvaText = document.getElementById('kurva-text');
 
-    const audioUnlock = document.getElementById('audio-unlock');
-    const unlockBtn = document.getElementById('unlock-btn');
-
     // Store media paths and types
     let mediaUrls = [];
     let mediaData = [];
@@ -328,15 +284,6 @@
       rootMargin: '200px',
       threshold: 0.01
     };
-
-    // Detect iOS / Safari where we need explicit unlock
-    function isIOS() {
-      return /iP(hone|od|ad)/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    }
-    function isSafari() {
-      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    }
-    const needsAudioUnlock = isIOS() && isSafari();
 
     // Create spinning KURVA text
     function createKurvaText() {
@@ -505,7 +452,7 @@
         // Try to auto-play (may be blocked)
         modalVideo.oncanplay = () => {
           modalVideo.play().catch(() => {
-            // blocked — user can press play
+            /* blocked — user can press play */
           });
         };
       }
@@ -516,9 +463,7 @@
     }
 
     function closeModal(){
-      if (!modalVideo.paused) {
-        modalVideo.pause();
-      }
+      try { if (!modalVideo.paused) modalVideo.pause(); } catch(e){}
       isVideoPlaying = false;
       tryRestoreBgVolume();
       modal.classList.remove('active');
@@ -612,87 +557,77 @@
         console.log('Background music started automatically');
       } catch(err) {
         console.warn('Autoplay blocked or requires gesture', err);
-        // do nothing — overlay or user gesture will enable it
+        // If blocked, we'll silently wait for a user gesture to unlock
+        attachSilentUnlockListeners();
       }
     }
 
-    // Audio unlock overlay behavior
-    function showAudioUnlock() {
-      audioUnlock.classList.add('show');
-    }
-    function hideAudioUnlock() {
-      audioUnlock.classList.remove('show');
-    }
+    // Silent audio unlock: attach handlers that attempt to play/resume audio on first user gesture.
+    // No overlay or visible message — user doesn't see anything special.
+    let unlockHandlersAttached = false;
+    function attachSilentUnlockListeners() {
+      if (unlockHandlersAttached) return;
+      unlockHandlersAttached = true;
 
-    async function unlockAudioNow() {
-      try {
-        // Try to play bgMusic as user gesture (should be allowed on iOS Safari)
-        bgMusic.muted = false; // ensure unmuted
-        bgMusic.volume = prevBgVolume || 1;
-        await bgMusic.play();
-        console.log('Audio unlocked via user gesture');
-      } catch (err) {
-        console.warn('unlockAudioNow: play failed, attempting muted play fallback', err);
+      const unlock = async (ev) => {
         try {
-          // fallback: play muted then unmute (still user gesture)
-          bgMusic.muted = true;
-          await bgMusic.play();
+          // Attempt to resume WebAudio context if present (some pages may create one)
+          if (window.AudioContext || window.webkitAudioContext) {
+            try {
+              const ctx = new (window.AudioContext || window.webkitAudioContext)();
+              if (ctx.state === 'suspended') await ctx.resume().catch(()=>{});
+              // try connect bgMusic through context to improve chance
+              try {
+                const src = ctx.createMediaElementSource(bgMusic);
+                src.connect(ctx.destination);
+              } catch(e){}
+            } catch(e){}
+          }
+
           bgMusic.muted = false;
-          console.log('Fallback muted->unmute succeeded');
-        } catch (err2) {
-          console.warn('Fallback failed', err2);
+          bgMusic.volume = prevBgVolume || 1;
+          await bgMusic.play();
+          // success — remove listeners
+          document.removeEventListener('touchstart', unlock, {passive:true});
+          document.removeEventListener('click', unlock, {passive:true});
+          document.removeEventListener('keydown', unlock, {passive:true});
+          console.log('Audio unlocked on user gesture');
+        } catch (err) {
+          // Try a fallback: play muted then unmute (still usually allowed if invoked from gesture)
+          try {
+            bgMusic.muted = true;
+            await bgMusic.play();
+            bgMusic.muted = false;
+            document.removeEventListener('touchstart', unlock, {passive:true});
+            document.removeEventListener('click', unlock, {passive:true});
+            document.removeEventListener('keydown', unlock, {passive:true});
+            console.log('Fallback muted->unmute succeeded');
+          } catch (err2) {
+            // Still blocked — keep listeners; the next gesture may work
+            console.warn('Silent unlock attempt failed', err2);
+          }
         }
-      } finally {
-        hideAudioUnlock();
-      }
+      };
+
+      // attach listeners (passive where safe)
+      document.addEventListener('touchstart', unlock, {passive:true});
+      document.addEventListener('click', unlock, {passive:true});
+      document.addEventListener('keydown', unlock, {passive:true});
     }
 
-    // If mobile Safari, show overlay until user taps
-    unlockBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await unlockAudioNow();
-    });
-
-    // Also allow touching anywhere to unlock (useful on desktops & other browsers)
-    function onFirstUserGesture() {
-      unlockAudioNow().catch(()=>{});
-      window.removeEventListener('touchstart', onFirstUserGesture, {passive:true});
-      window.removeEventListener('click', onFirstUserGesture, {passive:true});
-    }
-
-    // Start sequence: create UI, load gallery, and decide whether to show unlock
+    // Start sequence: create UI, load gallery, attempt autoplay (if blocked, attach silent unlock)
     window.addEventListener('load', async () => {
-      // create spinning text
       createKurvaText();
-      // load gallery
       await loadGallery();
-      // try to auto-play on non-safari
-      if (!needsAudioUnlock) {
-        startMusicIfPossible().catch(()=>{});
-      } else {
-        // show overlay for iOS Safari
-        showAudioUnlock();
-        // try to bind first-gesture unlock too
-        window.addEventListener('touchstart', onFirstUserGesture, {passive:true});
-        window.addEventListener('click', onFirstUserGesture, {passive:true});
-      }
-      // also attempt resume on any later gesture
+      startMusicIfPossible().catch(()=>{ attachSilentUnlockListeners(); });
+
+      // also attempt to resume audio on later gestures as extra fallback
       ['click','keydown','touchstart'].forEach(ev => {
         window.addEventListener(ev, () => {
           startMusicIfPossible().catch(()=>{});
         }, {passive:true});
       });
     });
-
-    // Optional: If user interacts after video ended, ensure music resumes
-    // (useful for Safari if the overlay isn't used)
-    document.addEventListener('click', () => {
-      if (bgMusic && bgMusic.paused === false && bgMusic.volume === 0) {
-        // nothing
-      } else {
-        startMusicIfPossible().catch(()=>{});
-      }
-    }, {passive:true});
   </script>
 </body>
 </html>
