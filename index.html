@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sr">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -62,7 +62,6 @@
       z-index: 2;
     }
 
-    /* Lazy loading placeholder */
     .lazy-placeholder {
       width: 100%;
       height: 100%;
@@ -73,6 +72,7 @@
       justify-content: center;
       color: #ff6600;
       font-size: 14px;
+      position:absolute; inset:0;
     }
 
     /* Fullscreen modal */
@@ -105,12 +105,10 @@
       box-shadow:0 0 40px rgba(255,102,0,.9);
       opacity: 1;
       transition: opacity 0.3s ease;
+      background:#000;
     }
     .modal-img.fade-out, .modal-video.fade-out {
       opacity: 0;
-    }
-    .modal-video {
-      background: #000;
     }
     .close-btn{ 
       position:absolute; 
@@ -175,9 +173,6 @@
       border-top:1px solid #333 
     }
 
-    /* hide audio UI */
-    .audio-player{ display:none }
-
     .music-indicator{ 
       position:fixed; 
       bottom:20px; 
@@ -195,14 +190,45 @@
       z-index:100;
       animation: pulse 2s infinite;
     }
-    
+
+    /* Audio-unlock overlay (for iOS/Safari) */
+    #audio-unlock {
+      position: fixed;
+      inset: 0;
+      display: none;
+      z-index: 20000;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.95));
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    #audio-unlock.show { display:flex; }
+    #audio-unlock .box {
+      border-radius: 12px;
+      padding: 22px;
+      border: 2px solid rgba(255,122,0,0.9);
+      background: rgba(20,20,20,0.8);
+      max-width: 420px;
+    }
+    #audio-unlock button {
+      margin-top:12px;
+      background: var(--accent, #ff6600);
+      color: #000;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
     .kurva-text {
       position: absolute;
       width: 100%;
       height: 100%;
       animation: spin 10s linear infinite;
     }
-    
     .kurva-text span {
       position: absolute;
       left: 50%;
@@ -212,19 +238,17 @@
       font-weight: bold;
       text-transform: uppercase;
     }
-    
+
     @keyframes pulse{ 
       0%{box-shadow:0 0 0 0 rgba(255,102,0,.7);}
       70%{box-shadow:0 0 0 15px rgba(255,102,0,0);}
       100%{box-shadow:0 0 0 0 rgba(255,102,0,0);} 
     }
-    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
 
-    /* responsive */
     @media(max-width:1200px){ .gallery{ grid-template-columns:repeat(4,1fr) } }
     @media(max-width:900px){ .gallery{ grid-template-columns:repeat(3,1fr) } }
     @media(max-width:600px){ .gallery{ grid-template-columns:repeat(2,1fr); } h1{ font-size:1.8rem } }
@@ -260,10 +284,19 @@
   </div>
 
   <!-- Audio -->
-  <audio id="bg-music" class="audio-player" loop playsinline>
+  <audio id="bg-music" class="audio-player" loop playsinline preload="auto" crossorigin="anonymous">
     <source src="media/Kurva%20ka%C5%BEe.mp3" type="audio/mpeg">
     Your browser does not support audio.
   </audio>
+
+  <!-- iOS / Safari audio unlock overlay -->
+  <div id="audio-unlock" role="dialog" aria-modal="true">
+    <div class="box">
+      <div style="font-size:18px;color:#ffb17a;font-weight:700">Tap to enable sound</div>
+      <div style="margin-top:8px;color:#ddd;font-size:14px">iOS Safari requires a tap to allow audio. Tap once and audio will play in background.</div>
+      <button id="unlock-btn">Enable sound</button>
+    </div>
+  </div>
 
   <script>
     // DOM references
@@ -280,15 +313,30 @@
     const bgMusic = document.getElementById('bg-music');
     const kurvaText = document.getElementById('kurva-text');
 
+    const audioUnlock = document.getElementById('audio-unlock');
+    const unlockBtn = document.getElementById('unlock-btn');
+
     // Store media paths and types
     let mediaUrls = [];
     let mediaData = [];
 
+    // Keep track of background volume state
+    let prevBgVolume = 1;
+
     // Lazy loading configuration
     const lazyLoadConfig = {
-      rootMargin: '100px 0px',
+      rootMargin: '200px',
       threshold: 0.01
     };
+
+    // Detect iOS / Safari where we need explicit unlock
+    function isIOS() {
+      return /iP(hone|od|ad)/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+    function isSafari() {
+      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    }
+    const needsAudioUnlock = isIOS() && isSafari();
 
     // Create spinning KURVA text
     function createKurvaText() {
@@ -301,7 +349,7 @@
       }
     }
 
-    // Load media with better video handling
+    // Load media element (image/video)
     function loadMediaElement(mediaElement, src, placeholder) {
       if (mediaElement.tagName === 'IMG') {
         mediaElement.src = src;
@@ -309,25 +357,19 @@
           if (placeholder) placeholder.style.display = 'none';
         };
       } else if (mediaElement.tagName === 'VIDEO') {
-        // For videos, we'll load them differently to avoid autoplay issues
         mediaElement.src = src;
-        // Only load metadata to get the thumbnail
         mediaElement.preload = 'metadata';
-        
         mediaElement.onloadedmetadata = () => {
           if (placeholder) placeholder.style.display = 'none';
-          // Seek to the beginning to show the first frame as thumbnail
-          mediaElement.currentTime = 0.1;
+          try { mediaElement.currentTime = 0.1; } catch(e){}
         };
-        
-        // Prevent video from playing when loading
         mediaElement.addEventListener('loadstart', () => {
-          mediaElement.pause();
+          try { mediaElement.pause(); } catch(e){}
         });
       }
     }
 
-    // Lazy load media when it comes into view
+    // Lazy load setup using IntersectionObserver
     function setupLazyLoading() {
       const lazyMediaObserver = new IntersectionObserver((entries, observer) => {
         entries.forEach(entry => {
@@ -335,249 +377,191 @@
             const container = entry.target;
             const mediaElement = container.querySelector('img, video');
             const placeholder = container.querySelector('.lazy-placeholder');
-            
-            if (mediaElement && !mediaElement.src && mediaElement.dataset.src) {
+            if (mediaElement && mediaElement.dataset && mediaElement.dataset.src) {
               loadMediaElement(mediaElement, mediaElement.dataset.src, placeholder);
+              delete mediaElement.dataset.src;
             }
-            
-            // Stop observing once loaded
             observer.unobserve(container);
           }
         });
       }, lazyLoadConfig);
 
-      // Observe all media containers
+      // Observe all containers currently in DOM
       document.querySelectorAll('.image-container, .video-container').forEach(container => {
         lazyMediaObserver.observe(container);
       });
     }
 
-    // Load manifest.json and build gallery
+    // Load manifest.json and build gallery (keeps lazy placeholders)
     async function loadGallery() {
       try {
-        // Fetch the manifest file
         const response = await fetch('./media/manifest.json');
         const manifest = await response.json();
-        
-        // Store all media files
+
         mediaData = manifest;
         mediaUrls = mediaData.map(item => item.path);
-        
-        // Build gallery with lazy loading
+
         mediaData.forEach((item, index) => {
           let cell, mediaElement;
           
           if (item.type === 'image') {
             cell = document.createElement('div');
             cell.className = 'image-container';
-            
-            // Create placeholder
+            cell.style.position = 'relative';
+
             const placeholder = document.createElement('div');
             placeholder.className = 'lazy-placeholder';
             placeholder.textContent = `${index + 1}`;
             cell.appendChild(placeholder);
-            
+
             mediaElement = document.createElement('img');
             mediaElement.dataset.src = item.path;
             mediaElement.alt = item.filename || `Image ${index + 1}`;
-          } else if (item.type === 'video') {
+          } else {
             cell = document.createElement('div');
             cell.className = 'video-container';
-            
-            // Create placeholder
+            cell.style.position = 'relative';
+
             const placeholder = document.createElement('div');
             placeholder.className = 'lazy-placeholder';
             placeholder.textContent = `${index + 1}`;
             cell.appendChild(placeholder);
-            
+
             mediaElement = document.createElement('video');
             mediaElement.dataset.src = item.path;
-            // Important: prevent autoplay and only load metadata
             mediaElement.setAttribute('preload', 'metadata');
             mediaElement.setAttribute('muted', 'true');
             mediaElement.setAttribute('playsinline', '');
             mediaElement.muted = true;
-            
-            // Add video icon
+
             const videoIcon = document.createElement('div');
             videoIcon.className = 'video-icon';
             videoIcon.innerHTML = '▶';
             cell.appendChild(videoIcon);
           }
-          
+
           mediaElement.dataset.index = index;
           mediaElement.dataset.type = item.type;
-          
+
           cell.appendChild(mediaElement);
           gallery.appendChild(cell);
 
-          // Add click event to the container
+          // Click opens modal
           cell.addEventListener('click', () => openModal(index));
         });
-        
-        console.log(`Loaded ${mediaUrls.length} media files from manifest`);
-        
-        // Setup lazy loading
+
+        // Initialize IntersectionObservers for elements just added
         setupLazyLoading();
-        
+
       } catch (error) {
         console.error('Error loading manifest:', error);
         gallery.innerHTML = '<div style="text-align:center;grid-column:1/-1;padding:20px;color:#ff6600;">Error loading media. Please check if manifest.json exists.</div>';
       }
     }
 
-    // Modal controls
+    // Modal controls & state
     let currentIndex = 0;
     let isTransitioning = false;
     let isVideoPlaying = false;
-    
+
     function openModal(i) {
       currentIndex = i;
       const mediaItem = mediaData[i];
-      
+
       if (mediaItem.type === 'image') {
-        // Show image, hide video
         modalImgContainer.style.display = 'block';
         modalVideoContainer.style.display = 'none';
         modalImg.src = mediaItem.path;
-        
-        // Ensure music is unmuted when viewing images
-        if (!isVideoPlaying) {
-          bgMusic.muted = false;
-        }
-      } else if (mediaItem.type === 'video') {
-        // Show video, hide image
+
+        // restore background volume if not a playing video
+        if (!isVideoPlaying) tryRestoreBgVolume();
+      } else {
         modalImgContainer.style.display = 'none';
         modalVideoContainer.style.display = 'block';
-        
-        // Reset video state
+
+        // Reset video element
         modalVideo.pause();
         modalVideo.currentTime = 0;
-        modalVideo.muted = false; // Unmute for modal viewing
-        
-        // Load the video source
+        modalVideo.muted = false;
+
+        // Load video
         modalVideo.src = mediaItem.path;
         modalVideo.load();
-        
-        // Mute music when video starts playing
+
+        // When video plays, mute BG by setting volume to 0 (store prev)
         modalVideo.onplay = () => {
-          bgMusic.muted = true;
+          tryStoreAndMuteBg();
           isVideoPlaying = true;
         };
-        
-        // Unmute music when video is paused
         modalVideo.onpause = () => {
-          bgMusic.muted = false;
+          tryRestoreBgVolume();
           isVideoPlaying = false;
         };
-        
-        // Auto-play video when enough data is loaded
+        modalVideo.onended = () => {
+          tryRestoreBgVolume();
+          isVideoPlaying = false;
+        };
+
+        // Try to auto-play (may be blocked)
         modalVideo.oncanplay = () => {
-          modalVideo.play().catch(e => {
-            console.log('Video autoplay prevented, user interaction required');
+          modalVideo.play().catch(() => {
+            // blocked — user can press play
           });
         };
       }
-      
+
       imageCounter.textContent = `${i + 1} / ${mediaUrls.length}`;
       modal.classList.add('active');
       modal.setAttribute('aria-hidden','false');
     }
-    
-    function closeModal(){ 
-      // Pause video if playing
+
+    function closeModal(){
       if (!modalVideo.paused) {
         modalVideo.pause();
       }
-      
-      // Reset video state
       isVideoPlaying = false;
-      bgMusic.muted = false;
-      
-      modal.classList.remove('active'); 
-      modal.setAttribute('aria-hidden','true'); 
+      tryRestoreBgVolume();
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden','true');
     }
 
     function changeImageWithTransition(newIndex) {
       if (isTransitioning || newIndex === currentIndex) return;
-      
       isTransitioning = true;
-      
-      // Get current and next media types
+
       const currentType = mediaData[currentIndex].type;
-      const nextType = mediaData[newIndex].type;
-      
-      // Fade out current media
-      if (currentType === 'image') {
-        modalImg.classList.add('fade-out');
-      } else {
-        modalVideo.classList.add('fade-out');
-        
-        // Pause video when navigating away
-        if (!modalVideo.paused) {
-          modalVideo.pause();
-          isVideoPlaying = false;
-          bgMusic.muted = false;
-        }
-      }
-      
-      // After fade out, change media and fade in
+
+      if (currentType === 'image') modalImg.classList.add('fade-out');
+      else modalVideo.classList.add('fade-out');
+
       setTimeout(() => {
         currentIndex = newIndex;
         const mediaItem = mediaData[currentIndex];
-        
+
         if (mediaItem.type === 'image') {
-          // Show image, hide video
           modalImgContainer.style.display = 'block';
           modalVideoContainer.style.display = 'none';
           modalImg.src = mediaItem.path;
-          
-          // Ensure music is unmuted when viewing images
-          bgMusic.muted = false;
+          tryRestoreBgVolume();
         } else {
-          // Show video, hide image
           modalImgContainer.style.display = 'none';
           modalVideoContainer.style.display = 'block';
-          
-          // Reset video state
-          modalVideo.pause();
-          modalVideo.currentTime = 0;
-          modalVideo.muted = false;
-          
-          // Load the video source
-          modalVideo.src = mediaItem.path;
-          modalVideo.load();
-          
-          // Mute music when video starts playing
-          modalVideo.onplay = () => {
-            bgMusic.muted = true;
-            isVideoPlaying = true;
-          };
-          
-          // Unmute music when video is paused
-          modalVideo.onpause = () => {
-            bgMusic.muted = false;
-            isVideoPlaying = false;
-          };
-          
-          // Auto-play video when enough data is loaded
-          modalVideo.oncanplay = () => {
-            modalVideo.play().catch(e => {
-              console.log('Video autoplay prevented');
-            });
-          };
+          modalVideo.pause(); modalVideo.currentTime = 0; modalVideo.muted = false;
+          modalVideo.src = mediaItem.path; modalVideo.load();
+
+          modalVideo.onplay = () => { tryStoreAndMuteBg(); isVideoPlaying = true; };
+          modalVideo.onpause = () => { tryRestoreBgVolume(); isVideoPlaying = false; };
+          modalVideo.onended = () => { tryRestoreBgVolume(); isVideoPlaying = false; };
+
+          modalVideo.oncanplay = () => { modalVideo.play().catch(()=>{}); };
         }
-        
+
         imageCounter.textContent = `${currentIndex + 1} / ${mediaUrls.length}`;
-        
-        // Remove fade-out class to trigger fade-in
+
         modalImg.classList.remove('fade-out');
         modalVideo.classList.remove('fade-out');
-        
-        // Reset transitioning flag after the transition completes
-        setTimeout(() => {
-          isTransitioning = false;
-        }, 300);
+
+        setTimeout(()=>{ isTransitioning = false; }, 300);
       }, 300);
     }
 
@@ -602,96 +586,113 @@
       else if (e.key === 'ArrowRight') nextBtn.click();
     });
 
-    // --- Audio autoplay strategy ---
-    async function startMusic() {
+    // Audio controls: use volume instead of mute to avoid Safari blocking
+    function tryStoreAndMuteBg() {
       try {
-        // set volume and loop
-        bgMusic.loop = true;
+        prevBgVolume = (typeof bgMusic.volume === 'number') ? bgMusic.volume : 1;
+        bgMusic.volume = 0;
+      } catch(e){}
+    }
+    function tryRestoreBgVolume() {
+      try {
+        if (typeof prevBgVolume === 'number') bgMusic.volume = prevBgVolume;
+        else bgMusic.volume = 1;
+      } catch(e){}
+    }
+
+    // Smart autoplay attempt (non-ios)
+    async function startMusicIfPossible(){
+      if (!bgMusic) return;
+      try {
         bgMusic.preload = 'auto';
-        bgMusic.muted = false; // attempt audible play first
-
-        // try direct play
-        let playPromise = bgMusic.play();
-        if (playPromise !== undefined) {
-          await playPromise;
-          console.log('Audio started via element.play()');
-          return;
-        }
-      } catch (err) {
-        console.warn('Direct play failed, will try muted autoplay then unmute:', err);
-      }
-
-      // 2) Try muted autoplay (most browsers allow muted autoplay)
-      try {
-        bgMusic.muted = true;
+        bgMusic.loop = true;
+        bgMusic.volume = prevBgVolume;
+        // Try direct play
         await bgMusic.play();
-        console.log('Muted autoplay succeeded');
-      } catch (err) {
-        console.warn('Muted autoplay failed as well:', err);
-        // Give up — browser is very strict. Leave muted attempt as fallback.
-        return;
-      }
-
-      // 3) Try to unmute and use Web Audio API to resume (may still require gesture)
-      try {
-        // create/resume AudioContext
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          try {
-            await ctx.resume();
-          } catch(e){ /* ignore resume errors */ }
-          // connect the <audio> element to the context and destination
-          const src = ctx.createMediaElementSource(bgMusic);
-          src.connect(ctx.destination);
-          // now attempt to unmute programmatically
-          bgMusic.muted = false;
-          try {
-            await bgMusic.play();
-            console.log('Unmuted and playing through AudioContext');
-            return;
-          } catch(e){
-            console.warn('Unmute/play after AudioContext failed:', e);
-            // If still blocked, keep it muted (so user hears nothing) but it's playing muted.
-          }
-        } else {
-          // no AudioContext available — try unmuting anyway
-          bgMusic.muted = false;
-          try { await bgMusic.play(); console.log('Unmuted and playing'); return; } catch(e){ console.warn('Final unmute failed', e); }
-        }
-      } catch (e) {
-        console.warn('Error when trying AudioContext path:', e);
+        console.log('Background music started automatically');
+      } catch(err) {
+        console.warn('Autoplay blocked or requires gesture', err);
+        // do nothing — overlay or user gesture will enable it
       }
     }
 
-    // Start as soon as possible after load
-    window.addEventListener('load', () => {
-      // Create the spinning KURVA text
-      createKurvaText();
-      
-      // Load the gallery first
-      loadGallery().then(() => {
-        console.log('Gallery loaded successfully');
-      });
-      
-      // Then attempt to start music
-      startMusic().catch(e => console.warn('startMusic error', e));
+    // Audio unlock overlay behavior
+    function showAudioUnlock() {
+      audioUnlock.classList.add('show');
+    }
+    function hideAudioUnlock() {
+      audioUnlock.classList.remove('show');
+    }
+
+    async function unlockAudioNow() {
+      try {
+        // Try to play bgMusic as user gesture (should be allowed on iOS Safari)
+        bgMusic.muted = false; // ensure unmuted
+        bgMusic.volume = prevBgVolume || 1;
+        await bgMusic.play();
+        console.log('Audio unlocked via user gesture');
+      } catch (err) {
+        console.warn('unlockAudioNow: play failed, attempting muted play fallback', err);
+        try {
+          // fallback: play muted then unmute (still user gesture)
+          bgMusic.muted = true;
+          await bgMusic.play();
+          bgMusic.muted = false;
+          console.log('Fallback muted->unmute succeeded');
+        } catch (err2) {
+          console.warn('Fallback failed', err2);
+        }
+      } finally {
+        hideAudioUnlock();
+      }
+    }
+
+    // If mobile Safari, show overlay until user taps
+    unlockBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await unlockAudioNow();
     });
 
-    // Helpful: if user interacts later, try to resume audio again once
-    function tryResumeOnGesture() {
-      startMusic().then(()=> {
-        // remove listeners once we attempted
-        window.removeEventListener('click', tryResumeOnGesture);
-        window.removeEventListener('keydown', tryResumeOnGesture);
-      }).catch(()=>{});
+    // Also allow touching anywhere to unlock (useful on desktops & other browsers)
+    function onFirstUserGesture() {
+      unlockAudioNow().catch(()=>{});
+      window.removeEventListener('touchstart', onFirstUserGesture, {passive:true});
+      window.removeEventListener('click', onFirstUserGesture, {passive:true});
     }
-    // add gesture listeners to attempt again (no visible hint per request)
-    window.addEventListener('click', tryResumeOnGesture, { once: false });
-    window.addEventListener('keydown', tryResumeOnGesture, { once: false });
 
-    // Optional: show small console message about autoplay restrictions
-    console.log('Gallery loaded — audio attempted. If it is not playing, your browser blocked autoplay (browser policy).');
+    // Start sequence: create UI, load gallery, and decide whether to show unlock
+    window.addEventListener('load', async () => {
+      // create spinning text
+      createKurvaText();
+      // load gallery
+      await loadGallery();
+      // try to auto-play on non-safari
+      if (!needsAudioUnlock) {
+        startMusicIfPossible().catch(()=>{});
+      } else {
+        // show overlay for iOS Safari
+        showAudioUnlock();
+        // try to bind first-gesture unlock too
+        window.addEventListener('touchstart', onFirstUserGesture, {passive:true});
+        window.addEventListener('click', onFirstUserGesture, {passive:true});
+      }
+      // also attempt resume on any later gesture
+      ['click','keydown','touchstart'].forEach(ev => {
+        window.addEventListener(ev, () => {
+          startMusicIfPossible().catch(()=>{});
+        }, {passive:true});
+      });
+    });
+
+    // Optional: If user interacts after video ended, ensure music resumes
+    // (useful for Safari if the overlay isn't used)
+    document.addEventListener('click', () => {
+      if (bgMusic && bgMusic.paused === false && bgMusic.volume === 0) {
+        // nothing
+      } else {
+        startMusicIfPossible().catch(()=>{});
+      }
+    }, {passive:true});
   </script>
 </body>
 </html>
