@@ -356,7 +356,7 @@
     async function loadGallery() {
       try {
         // Fetch the manifest file
-        const response = await fetch('/media/manifest.json');
+        const response = await fetch('./media/manifest.json');
         const manifest = await response.json();
         
         // Store all media files
