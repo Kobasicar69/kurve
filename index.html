@@ -1,56 +1,91 @@
 <!DOCTYPE html>
 <html lang="sr">
+
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Као Галерија</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma, Geneva, Verdana, sans-serif}
-    body{background:#000;color:#fff;padding:20px;min-height:100vh;overflow-x:hidden}
-    header{ text-align:center;margin-bottom:30px;padding:20px;border-bottom:2px solid #ff6600 }
-    h1{ color:#ff6600;font-size:2.2rem;text-shadow:0 0 10px rgba(255,102,0,.7);margin-bottom:6px }
-    .subtitle{ color:#ccc;font-size:1rem }
-
-    .gallery{
-      display:grid;
-      grid-template-columns:repeat(5,1fr);
-      gap:15px;
-      max-width:1400px;
-      margin:0 auto;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
     }
 
-    .image-container, .video-container{
-      position:relative;
-      overflow:hidden;
-      border-radius:8px;
-      border:3px solid #333;
+    body {
+      background: #000;
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+      overflow-x: hidden
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      border-bottom: 2px solid #ff6600
+    }
+
+    h1 {
+      color: #ff6600;
+      font-size: 2.2rem;
+      text-shadow: 0 0 10px rgba(255, 102, 0, .7);
+      margin-bottom: 6px
+    }
+
+    .subtitle {
+      color: #ccc;
+      font-size: 1rem
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 15px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .image-container,
+    .video-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 3px solid #333;
       transition: box-shadow 0.4s ease, border-color 0.4s ease;
-      aspect-ratio:1/1;
-      background:linear-gradient(180deg,#050505,#0b0b0b);
-      box-shadow:0 4px 15px rgba(0,0,0,.8);
-    }
-    .image-container:hover, .video-container:hover{
-      border-color:#ff6600;
-      box-shadow:0 0 30px rgba(255,102,0,.9), 0 0 40px rgba(255,102,0,.6);
+      aspect-ratio: 1/1;
+      background: linear-gradient(180deg, #050505, #0b0b0b);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, .8);
     }
 
-    .image-container img, .video-container video{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
+    .image-container:hover,
+    .video-container:hover {
+      border-color: #ff6600;
+      box-shadow: 0 0 30px rgba(255, 102, 0, .9), 0 0 40px rgba(255, 102, 0, .6);
+    }
+
+    .image-container img,
+    .video-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
       transition: transform .5s ease, filter .4s ease;
     }
-    .image-container:hover img, .video-container:hover video{
-      transform:scale(1.15);
-      filter:brightness(.7) contrast(1.08);
+
+    .image-container:hover img,
+    .video-container:hover video {
+      transform: scale(1.15);
+      filter: brightness(.7) contrast(1.08);
     }
 
     .video-icon {
       position: absolute;
       top: 8px;
       right: 8px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.7);
       border-radius: 50%;
       width: 24px;
       height: 24px;
@@ -72,122 +107,139 @@
       justify-content: center;
       color: #ff6600;
       font-size: 14px;
-      position:absolute; inset:0;
+      position: absolute;
+      inset: 0;
     }
 
     /* Fullscreen modal */
-    .modal{ 
-      display:none; 
-      position:fixed; 
-      inset:0; 
-      background:rgba(0,0,0,.95); 
-      z-index:1000; 
-      justify-content:center; 
-      align-items:center; 
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .95);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
       opacity: 0;
       transition: opacity 0.3s ease;
     }
-    .modal.active{ 
-      display:flex;
+
+    .modal.active {
+      display: flex;
       opacity: 1;
     }
-    .modal-img-container, .modal-video-container {
+
+    .modal-img-container,
+    .modal-video-container {
       position: relative;
       max-width: 90%;
       max-height: 86vh;
     }
-    .modal-img, .modal-video{ 
-      max-width:100%; 
-      max-height:86vh; 
-      object-fit:contain; 
-      border:5px solid #ff6600; 
-      border-radius:10px; 
-      box-shadow:0 0 40px rgba(255,102,0,.9);
+
+    .modal-img,
+    .modal-video {
+      max-width: 100%;
+      max-height: 86vh;
+      object-fit: contain;
+      border: 5px solid #ff6600;
+      border-radius: 10px;
+      box-shadow: 0 0 40px rgba(255, 102, 0, .9);
       opacity: 1;
       transition: opacity 0.3s ease;
-      background:#000;
+      background: #000;
     }
-    .modal-img.fade-out, .modal-video.fade-out {
+
+    .modal-img.fade-out,
+    .modal-video.fade-out {
       opacity: 0;
     }
-    .close-btn{ 
-      position:absolute; 
-      top:20px; 
-      right:30px; 
-      font-size:40px; 
-      color:#ff6600; 
-      cursor:pointer; 
-      background:none; 
-      border:none; 
-      z-index:1001; 
-      transition:transform .2s, text-shadow .2s 
-    }
-    .close-btn:hover{ 
-      transform:scale(1.12); 
-      text-shadow:0 0 15px rgba(255,102,0,1) 
+
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 40px;
+      color: #ff6600;
+      cursor: pointer;
+      background: none;
+      border: none;
+      z-index: 1001;
+      transition: transform .2s, text-shadow .2s
     }
 
-    .nav-btn{
-      position:absolute; 
-      top:50%; 
-      transform:translateY(-50%);
-      background:rgba(0,0,0,.5); 
-      color:#ff6600; 
-      border:2px solid #ff6600;
-      width:50px;
-      height:50px;
-      border-radius:50%;
-      font-size:30px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      z-index:1001;
-      transition:background .2s,color .2s,box-shadow .2s;
-    }
-    .nav-btn:hover{ 
-      background:#ff6600;
-      color:#000; 
-      box-shadow:0 0 20px rgba(255,102,0,.9) 
-    }
-    .prev-btn{ left:20px } 
-    .next-btn{ right:20px }
-
-    .image-counter{ 
-      position:absolute; 
-      bottom:20px; 
-      left:50%; 
-      transform:translateX(-50%); 
-      color:#ff6600; 
-      background:rgba(0,0,0,.7); 
-      padding:6px 14px; 
-      border-radius:20px; 
-      border:1px solid #ff6600 
+    .close-btn:hover {
+      transform: scale(1.12);
+      text-shadow: 0 0 15px rgba(255, 102, 0, 1)
     }
 
-    footer{ 
-      text-align:center;
-      margin-top:40px;
-      padding:20px;
-      color:#666;
-      border-top:1px solid #333 
+    .nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0, 0, 0, .5);
+      color: #ff6600;
+      border: 2px solid #ff6600;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      font-size: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 1001;
+      transition: background .2s, color .2s, box-shadow .2s;
     }
 
-    .music-indicator{ 
-      position:fixed; 
-      bottom:20px; 
-      right:20px; 
-      background:rgba(255,102,0,.18); 
-      border:1px solid #ff6600; 
-      border-radius:50%; 
-      width:60px; 
-      height:60px; 
-      display:flex; 
-      justify-content:center; 
-      align-items:center; 
-      color:#ff6600; 
-      font-size:20px; 
-      z-index:100;
+    .nav-btn:hover {
+      background: #ff6600;
+      color: #000;
+      box-shadow: 0 0 20px rgba(255, 102, 0, .9)
+    }
+
+    .prev-btn {
+      left: 20px
+    }
+
+    .next-btn {
+      right: 20px
+    }
+
+    .image-counter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ff6600;
+      background: rgba(0, 0, 0, .7);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #ff6600
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding: 20px;
+      color: #666;
+      border-top: 1px solid #333
+    }
+
+    .music-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255, 102, 0, .18);
+      border: 1px solid #ff6600;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ff6600;
+      font-size: 20px;
+      z-index: 100;
       animation: pulse 2s infinite;
     }
 
@@ -197,6 +249,7 @@
       height: 100%;
       animation: spin 10s linear infinite;
     }
+
     .kurva-text span {
       position: absolute;
       left: 50%;
@@ -207,22 +260,60 @@
       text-transform: uppercase;
     }
 
-    @keyframes pulse{ 
-      0%{box-shadow:0 0 0 0 rgba(255,102,0,.7);}
-      70%{box-shadow:0 0 0 15px rgba(255,102,0,0);}
-      100%{box-shadow:0 0 0 0 rgba(255,102,0,0);} 
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 102, 0, .7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 15px rgba(255, 102, 0, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 102, 0, 0);
+      }
     }
 
-    @media(max-width:1200px){ .gallery{ grid-template-columns:repeat(4,1fr) } }
-    @media(max-width:900px){ .gallery{ grid-template-columns:repeat(3,1fr) } }
-    @media(max-width:600px){ .gallery{ grid-template-columns:repeat(2,1fr); } h1{ font-size:1.8rem } }
-    @media(max-width:400px){ .gallery{ grid-template-columns:1fr } }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media(max-width:1200px) {
+      .gallery {
+        grid-template-columns: repeat(4, 1fr)
+      }
+    }
+
+    @media(max-width:900px) {
+      .gallery {
+        grid-template-columns: repeat(3, 1fr)
+      }
+    }
+
+    @media(max-width:600px) {
+      .gallery {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      h1 {
+        font-size: 1.8rem
+      }
+    }
+
+    @media(max-width:400px) {
+      .gallery {
+        grid-template-columns: 1fr
+      }
+    }
   </style>
 </head>
+
 <body>
   <header>
     <h1>К.П.Ч.</h1>
@@ -244,7 +335,9 @@
     <div class="image-counter" id="image-counter">1 / 446</div>
   </div>
 
-  <footer><p>Сликано Андријаниним апаратом &copy; 2025/26 | боје су познате</p></footer>
+  <footer>
+    <p>Сликано Андријаниним апаратом &copy; 2025/26 | боје су познате</p>
+  </footer>
 
   <div class="music-indicator" title="Music is playing">
     <div class="kurva-text" id="kurva-text"></div>
@@ -308,10 +401,10 @@
         mediaElement.preload = 'metadata';
         mediaElement.onloadedmetadata = () => {
           if (placeholder) placeholder.style.display = 'none';
-          try { mediaElement.currentTime = 0.1; } catch(e){}
+          try { mediaElement.currentTime = 0.1; } catch (e) { }
         };
         mediaElement.addEventListener('loadstart', () => {
-          try { mediaElement.pause(); } catch(e){}
+          try { mediaElement.pause(); } catch (e) { }
         });
       }
     }
@@ -345,12 +438,15 @@
         const response = await fetch('./media/manifest.json');
         const manifest = await response.json();
 
-        mediaData = manifest;
+        mediaData = manifest.sort((a, b) => {
+          if (a.type === b.type) return 0;
+          return a.type === 'video' ? 1 : -1;
+        });
         mediaUrls = mediaData.map(item => item.path);
 
         mediaData.forEach((item, index) => {
           let cell, mediaElement;
-          
+
           if (item.type === 'image') {
             cell = document.createElement('div');
             cell.className = 'image-container';
@@ -459,15 +555,15 @@
 
       imageCounter.textContent = `${i + 1} / ${mediaUrls.length}`;
       modal.classList.add('active');
-      modal.setAttribute('aria-hidden','false');
+      modal.setAttribute('aria-hidden', 'false');
     }
 
-    function closeModal(){
-      try { if (!modalVideo.paused) modalVideo.pause(); } catch(e){}
+    function closeModal() {
+      try { if (!modalVideo.paused) modalVideo.pause(); } catch (e) { }
       isVideoPlaying = false;
       tryRestoreBgVolume();
       modal.classList.remove('active');
-      modal.setAttribute('aria-hidden','true');
+      modal.setAttribute('aria-hidden', 'true');
     }
 
     function changeImageWithTransition(newIndex) {
@@ -498,7 +594,7 @@
           modalVideo.onpause = () => { tryRestoreBgVolume(); isVideoPlaying = false; };
           modalVideo.onended = () => { tryRestoreBgVolume(); isVideoPlaying = false; };
 
-          modalVideo.oncanplay = () => { modalVideo.play().catch(()=>{}); };
+          modalVideo.oncanplay = () => { modalVideo.play().catch(() => { }); };
         }
 
         imageCounter.textContent = `${currentIndex + 1} / ${mediaUrls.length}`;
@@ -506,7 +602,7 @@
         modalImg.classList.remove('fade-out');
         modalVideo.classList.remove('fade-out');
 
-        setTimeout(()=>{ isTransitioning = false; }, 300);
+        setTimeout(() => { isTransitioning = false; }, 300);
       }, 300);
     }
 
@@ -536,17 +632,17 @@
       try {
         prevBgVolume = (typeof bgMusic.volume === 'number') ? bgMusic.volume : 1;
         bgMusic.volume = 0;
-      } catch(e){}
+      } catch (e) { }
     }
     function tryRestoreBgVolume() {
       try {
         if (typeof prevBgVolume === 'number') bgMusic.volume = prevBgVolume;
         else bgMusic.volume = 1;
-      } catch(e){}
+      } catch (e) { }
     }
 
     // Smart autoplay attempt (non-ios)
-    async function startMusicIfPossible(){
+    async function startMusicIfPossible() {
       if (!bgMusic) return;
       try {
         bgMusic.preload = 'auto';
@@ -555,7 +651,7 @@
         // Try direct play
         await bgMusic.play();
         console.log('Background music started automatically');
-      } catch(err) {
+      } catch (err) {
         console.warn('Autoplay blocked or requires gesture', err);
         // If blocked, we'll silently wait for a user gesture to unlock
         attachSilentUnlockListeners();
@@ -575,22 +671,22 @@
           if (window.AudioContext || window.webkitAudioContext) {
             try {
               const ctx = new (window.AudioContext || window.webkitAudioContext)();
-              if (ctx.state === 'suspended') await ctx.resume().catch(()=>{});
+              if (ctx.state === 'suspended') await ctx.resume().catch(() => { });
               // try connect bgMusic through context to improve chance
               try {
                 const src = ctx.createMediaElementSource(bgMusic);
                 src.connect(ctx.destination);
-              } catch(e){}
-            } catch(e){}
+              } catch (e) { }
+            } catch (e) { }
           }
 
           bgMusic.muted = false;
           bgMusic.volume = prevBgVolume || 1;
           await bgMusic.play();
           // success — remove listeners
-          document.removeEventListener('touchstart', unlock, {passive:true});
-          document.removeEventListener('click', unlock, {passive:true});
-          document.removeEventListener('keydown', unlock, {passive:true});
+          document.removeEventListener('touchstart', unlock, { passive: true });
+          document.removeEventListener('click', unlock, { passive: true });
+          document.removeEventListener('keydown', unlock, { passive: true });
           console.log('Audio unlocked on user gesture');
         } catch (err) {
           // Try a fallback: play muted then unmute (still usually allowed if invoked from gesture)
@@ -598,9 +694,9 @@
             bgMusic.muted = true;
             await bgMusic.play();
             bgMusic.muted = false;
-            document.removeEventListener('touchstart', unlock, {passive:true});
-            document.removeEventListener('click', unlock, {passive:true});
-            document.removeEventListener('keydown', unlock, {passive:true});
+            document.removeEventListener('touchstart', unlock, { passive: true });
+            document.removeEventListener('click', unlock, { passive: true });
+            document.removeEventListener('keydown', unlock, { passive: true });
             console.log('Fallback muted->unmute succeeded');
           } catch (err2) {
             // Still blocked — keep listeners; the next gesture may work
@@ -610,24 +706,25 @@
       };
 
       // attach listeners (passive where safe)
-      document.addEventListener('touchstart', unlock, {passive:true});
-      document.addEventListener('click', unlock, {passive:true});
-      document.addEventListener('keydown', unlock, {passive:true});
+      document.addEventListener('touchstart', unlock, { passive: true });
+      document.addEventListener('click', unlock, { passive: true });
+      document.addEventListener('keydown', unlock, { passive: true });
     }
 
     // Start sequence: create UI, load gallery, attempt autoplay (if blocked, attach silent unlock)
     window.addEventListener('load', async () => {
       createKurvaText();
       await loadGallery();
-      startMusicIfPossible().catch(()=>{ attachSilentUnlockListeners(); });
+      startMusicIfPossible().catch(() => { attachSilentUnlockListeners(); });
 
       // also attempt to resume audio on later gestures as extra fallback
-      ['click','keydown','touchstart'].forEach(ev => {
+      ['click', 'keydown', 'touchstart'].forEach(ev => {
         window.addEventListener(ev, () => {
-          startMusicIfPossible().catch(()=>{});
-        }, {passive:true});
+          startMusicIfPossible().catch(() => { });
+        }, { passive: true });
       });
     });
   </script>
 </body>
+
 </html>
