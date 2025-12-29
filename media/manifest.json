@@ -2690,6 +2690,21 @@
     "path": "media/IMG-20251207-WA0503.jpg"
   },
   {
+    "type": "image",
+    "filename": "IMG_0101.JPG",
+    "path": "media/IMG_0101.JPG"
+  },
+  {
+    "type": "image",
+    "filename": "IMG_0247.JPG",
+    "path": "media/IMG_0247.JPG"
+  },
+  {
+    "type": "image",
+    "filename": "IMG_0435.JPG",
+    "path": "media/IMG_0435.JPG"
+  },
+  {
     "type": "video",
     "filename": "VID-20251129-WA0001.mp4",
     "path": "media/VID-20251129-WA0001.mp4"
